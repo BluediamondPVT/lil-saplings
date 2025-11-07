@@ -19,6 +19,46 @@ const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 const app = express();
 
 // ===========================
+// CORS CONFIGURATION (LOCAL + PRODUCTION)
+// ===========================
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:5500',
+  'http://localhost:8000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:8000',
+  'https://lil-saplings.vercel.app',
+  process.env.FRONTEND_URL || 'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl requests, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // In production, be stricter
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('Not allowed by CORS'));
+      } else {
+        // In development, allow for testing
+        callback(null, true);
+      }
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// ===========================
 // SECURITY MIDDLEWARE
 // ===========================
 
@@ -32,12 +72,6 @@ app.use(helmet({
     }
   },
   crossOriginEmbedderPolicy: false
-}));
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  optionsSuccessStatus: 200
 }));
 
 app.use(mongoSanitize());
@@ -207,6 +241,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ CORS enabled for local testing`);
 });
 
 // Export for Vercel
