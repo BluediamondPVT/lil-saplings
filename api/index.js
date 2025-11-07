@@ -1,3 +1,4 @@
+// api/index.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -12,7 +13,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJSDoc = require('swagger-jsdoc');
 
 // Rate limiting
-const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, authLimiter } = require('../middleware/rateLimiter');
 
 const app = express();
 
@@ -100,7 +101,7 @@ const swaggerOptions = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production'
-          ? process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://api.example.com'
+          ? `https://${process.env.VERCEL_URL}`
           : process.env.SERVER_URL || 'http://localhost:5000',
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
@@ -116,7 +117,7 @@ const swaggerOptions = {
       }
     }
   },
-  apis: ['./routes/*.js']
+  apis: ['../routes/*.js']
 };
 
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
@@ -145,8 +146,8 @@ app.use(async (req, res, next) => {
 // ROUTES
 // ===========================
 
-app.use('/api/posts', apiLimiter, require('./routes/posts'));
-app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/posts', apiLimiter, require('../routes/posts'));
+app.use('/api/auth', authLimiter, require('../routes/auth'));
 
 // Health check
 app.get('/', (req, res) => {

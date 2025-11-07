@@ -52,7 +52,7 @@ const postValidators = {
   ]
 };
 
-// Auth validators (keep same as before)
+// Auth validators
 const authValidators = {
   register: [
     body('name')
