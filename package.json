@@ -2,10 +2,10 @@
   "name": "classic-blog-api",
   "version": "1.0.0",
   "description": "Production-ready blog API with Node.js, Express, MongoDB",
-  "main": "api/index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node api/index.js",
-    "dev": "nodemon api/index.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "engines": {
     "node": ">=18.0.0"
