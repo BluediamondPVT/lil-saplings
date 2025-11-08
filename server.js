@@ -1,6 +1,3 @@
-// server.js
-require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,6 +5,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const mongoSanitize = require('express-mongo-sanitize');
+require('dotenv').config();
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -19,51 +17,10 @@ const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 const app = express();
 
 // ===========================
-// CORS CONFIGURATION (LOCAL + PRODUCTION)
-// ===========================
-
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5000',
-  'http://localhost:5500',
-  'http://localhost:5501',    // ← ADD THIS
-  'http://localhost:8000',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5000',
-  'http://127.0.0.1:5500',
-  'http://127.0.0.1:5501',    // ← ADD THIS
-  'http://127.0.0.1:8000',
-  'https://lil-saplings.vercel.app',
-  process.env.FRONTEND_URL || 'http://localhost:3000'
-];
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, curl requests, etc)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // In production, be stricter
-      if (process.env.NODE_ENV === 'production') {
-        callback(new Error('Not allowed by CORS'));
-      } else {
-        // In development, allow for testing
-        callback(null, true);
-      }
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// ===========================
 // SECURITY MIDDLEWARE
 // ===========================
 
+// Helmet - Security headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -76,11 +33,47 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// CORS Configuration - Allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL,
+  process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim())
+].flat().filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
+}));
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Data sanitization against NoSQL injection
 app.use(mongoSanitize());
+
+// Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Compression
 app.use(compression());
 
+// Logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 } else {
@@ -138,7 +131,7 @@ const swaggerOptions = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production'
-          ? process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://api.example.com'
+          ? `https://${process.env.VERCEL_URL}`
           : process.env.SERVER_URL || 'http://localhost:5000',
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
@@ -164,7 +157,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // ===========================
-// CONNECTION MIDDLEWARE
+// CONNECTION MIDDLEWARE (Vercel)
 // ===========================
 
 app.use(async (req, res, next) => {
@@ -234,17 +227,15 @@ app.use((error, req, res, next) => {
 });
 
 // ===========================
-// START SERVER (ALWAYS for local dev)
+// START SERVER / EXPORT
 // ===========================
 
-const PORT = process.env.PORT || 5000;
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
+  });
+}
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✅ CORS enabled for local testing`);
-});
-
-// Export for Vercel
 module.exports = app;
